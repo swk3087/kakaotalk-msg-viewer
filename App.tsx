@@ -47,6 +47,15 @@ const FileUpload: React.FC<{
                     {isLoading ? '처리 중...' : '폴더 선택'}
                 </label>
             </div>
+             <p className="text-xs text-gray-400 mt-6">
+                <strong>폴더 선택 도움말:</strong> 모바일 기기에서는 보통
+                <br />
+                <code className="bg-gray-700 text-yellow-400 px-1.5 py-0.5 rounded-md text-sm font-mono">
+                    내장 메모리/KakaoTalk/Chats/
+                </code>
+                <br />
+                경로 안에 대화 폴더가 저장됩니다.
+            </p>
             {error && <p className="text-red-400 mt-4">{error}</p>}
             <p className="text-xs text-gray-500 mt-6">
                 이 애플리케이션은 모든 데이터를 브라우저 내에서만 처리합니다.

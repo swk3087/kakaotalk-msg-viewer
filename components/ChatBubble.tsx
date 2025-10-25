@@ -54,7 +54,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, user, imageStore, onUp
           src={imageUrl}
           alt="chat content"
           className="rounded-lg max-w-full h-auto"
-          style={{ maxWidth: '300px' }}
         />
       );
     }
@@ -87,13 +86,15 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, user, imageStore, onUp
   const containerClass = user.isMe
     ? 'flex justify-end'
     : 'flex justify-start';
+    
+  const bubbleWrapperClass = `rounded-lg max-w-xs md:max-w-md ${imageUrl ? 'p-0 bg-transparent' : `${bubbleClass} p-2`}`;
 
   if (user.isMe) {
     return (
       <div className={`${containerClass} mb-1`}>
         <div className="flex items-end gap-2">
           {isLastInGroup && <span className="text-xs text-gray-500 mb-1 flex-shrink-0">{message.timestamp}</span>}
-          <div className={`rounded-lg p-2 max-w-xs md:max-w-md ${bubbleClass} ${imageUrl ? 'p-1' : ''}`}>
+          <div className={bubbleWrapperClass}>
             {bubbleContent()}
           </div>
         </div>
@@ -115,7 +116,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, user, imageStore, onUp
       <div className="flex flex-col items-start">
         {!message.isContinuation && <div className="text-sm text-gray-800 mb-1">{user.name}</div>}
         <div className="flex items-end gap-2">
-          <div className={`rounded-lg p-2 max-w-xs md:max-w-md ${bubbleClass} ${imageUrl ? 'p-1' : ''}`}>
+          <div className={bubbleWrapperClass}>
             {bubbleContent()}
           </div>
           {isLastInGroup && <span className="text-xs text-gray-500 mb-1 flex-shrink-0">{message.timestamp}</span>}
