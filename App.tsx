@@ -43,37 +43,47 @@ const formatDateForDisplay = (dateString: string, mode: 'kakaotalk' | 'instagram
 const FileUpload: React.FC<{ 
   onFileUpload: (file: File) => void; 
   onFolderUpload: (files: FileList) => void;
+  onDemoClick: () => void;
   isLoading: boolean; 
   error: string | null 
-}> = ({ onFileUpload, onFolderUpload, isLoading, error }) => (
+}> = ({ onFileUpload, onFolderUpload, onDemoClick, isLoading, error }) => (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white p-4">
         <div className="text-center p-8 border-2 border-dashed border-gray-600 rounded-lg max-w-lg">
             <h1 className="text-3xl font-bold mb-2">카카오톡 대화 뷰어</h1>
             <p className="text-gray-400 mb-6">카카오톡에서 '대화 내용 내보내기' 기능을 사용하여 만든 .zip 파일 또는 폴더를 업로드하세요.</p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <input
-                    type="file"
-                    id="file-upload"
-                    className="hidden"
-                    accept=".zip"
-                    onChange={(e) => e.target.files && onFileUpload(e.target.files[0])}
-                    disabled={isLoading}
-                />
-                <label htmlFor="file-upload" className={`w-full text-center px-6 py-3 rounded-lg font-semibold cursor-pointer transition-colors ${isLoading ? 'bg-gray-500' : 'bg-[#F7E600] hover:bg-yellow-400 text-black'}`}>
-                    {isLoading ? '처리 중...' : 'ZIP 파일 선택'}
-                </label>
+            <div className="flex flex-col gap-4 justify-center">
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <input
+                        type="file"
+                        id="file-upload"
+                        className="hidden"
+                        accept=".zip"
+                        onChange={(e) => e.target.files && onFileUpload(e.target.files[0])}
+                        disabled={isLoading}
+                    />
+                    <label htmlFor="file-upload" className={`w-full text-center px-6 py-3 rounded-lg font-semibold cursor-pointer transition-colors ${isLoading ? 'bg-gray-500' : 'bg-[#F7E600] hover:bg-yellow-400 text-black'}`}>
+                        {isLoading ? '처리 중...' : 'ZIP 파일 선택'}
+                    </label>
 
-                <input
-                    type="file"
-                    id="folder-upload"
-                    className="hidden"
-                    onChange={(e) => e.target.files && onFolderUpload(e.target.files)}
+                    <input
+                        type="file"
+                        id="folder-upload"
+                        className="hidden"
+                        onChange={(e) => e.target.files && onFolderUpload(e.target.files)}
+                        disabled={isLoading}
+                        {...{ webkitdirectory: "", directory: "" }}
+                    />
+                    <label htmlFor="folder-upload" className={`w-full text-center px-6 py-3 rounded-lg font-semibold cursor-pointer transition-colors ${isLoading ? 'bg-gray-500' : 'bg-sky-500 hover:bg-sky-600 text-white'}`}>
+                        {isLoading ? '처리 중...' : '폴더 선택'}
+                    </label>
+                </div>
+                <button
+                    onClick={onDemoClick}
                     disabled={isLoading}
-                    {...{ webkitdirectory: "", directory: "" }}
-                />
-                <label htmlFor="folder-upload" className={`w-full text-center px-6 py-3 rounded-lg font-semibold cursor-pointer transition-colors ${isLoading ? 'bg-gray-500' : 'bg-sky-500 hover:bg-sky-600 text-white'}`}>
-                    {isLoading ? '처리 중...' : '폴더 선택'}
-                </label>
+                    className={`w-full text-center px-6 py-3 rounded-lg font-semibold cursor-pointer transition-colors ${isLoading ? 'bg-gray-500' : 'bg-gray-600 hover:bg-gray-500 text-white'}`}
+                >
+                    {isLoading ? '처리 중...' : '데모 사용해보기'}
+                </button>
             </div>
              <p className="text-xs text-gray-400 mt-6">
                 <strong>폴더 선택 도움말:</strong> 모바일 기기에서는 보통
@@ -258,6 +268,37 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleDemo = useCallback(() => {
+    setIsLoading(true);
+    setError(null);
+
+    const demoTxtContent = `개발자 님과 카카오톡 대화
+저장한 날짜 : 2025년 10월 25일 오후 6:24
+
+
+
+4444년 10월 24일 오전 7:00
+4444년 10월 24일 오전 7:00, 개발자 : 상단 삼선 바를 누르고 기다리면 DM테마로 바뀝니다.
+4444년 10월 24일 오전 7:00, 테스터 : ㄷㄷ
+
+4444년 10월 24일 오전 7:10
+4444년 10월 24일 오전 7:10, 개발자 : 상단 삼선 바를 다시 누르면 기본 테마로 돌아갑니다.
+4444년 10월 24일 오전 7:10, 테스터 : ㅇㅋ`;
+
+    try {
+        const { messages, users: parsedUsers, title } = parseChat(demoTxtContent);
+        setParsedData({ messages, users: parsedUsers, title, imageStore: {} });
+        setIsSelectingUser(true);
+    } catch (e) {
+        console.error(e);
+        setError('데모를 로드하는 중 오류가 발생했습니다.');
+        setIsSelectingUser(false);
+        setParsedData(null);
+    } finally {
+        setIsLoading(false);
+    }
+  }, []);
+
   const handleSelectUser = useCallback((selectedName: string) => {
     if (!parsedData) return;
 
@@ -295,7 +336,7 @@ const App: React.FC = () => {
   }
 
   if (chatItems.length === 0) {
-    return <FileUpload onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} isLoading={isLoading} error={error} />;
+    return <FileUpload onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} onDemoClick={handleDemo} isLoading={isLoading} error={error} />;
   }
   
   const chatContainerStyle = uiMode === 'kakaotalk' ? 'bg-[#A9BDCE]' : 'bg-gradient-to-b from-[#F6E2FF] to-[#E1F5FE]';
