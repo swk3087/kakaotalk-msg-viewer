@@ -1,4 +1,3 @@
-
 // Add type declaration for the JSZip library loaded from CDN
 // FIX: Wrap in `declare global` because this file is a module. This makes JSZip available globally.
 declare global {
@@ -18,6 +17,7 @@ export interface Message {
   user: string;
   content: string;
   timestamp: string;
+  fullTimestamp: string;
   isContinuation: boolean;
 }
 

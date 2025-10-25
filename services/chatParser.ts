@@ -1,4 +1,4 @@
-import { ChatItem } from '../types';
+import { ChatItem, Message } from '../types';
 
 const KOREAN_DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -26,7 +26,7 @@ export const parseChat = (
   const users = new Set<string>();
 
   const messageRegex = /^(\d{4}년 \d{1,2}월 \d{1,2}일 (?:오전|오후) \d{1,2}:\d{2}), (.+?) : ([\s\S]*)/;
-  const dateSeparatorRegex = /^(\d{4}년 \d{1,2}월 \d{1,2}일) (?:오전|오후) \d{1,2}:\d{2}$/;
+  const dateSeparatorRegex = /^(\d{4}년 \d{1,2}월 \d{1,2}일 (?:오전|오후) \d{1,2}:\d{2})$/;
   
   let lastMessage: ChatItem | null = null;
   let lastDate: string | null = null;
@@ -46,15 +46,19 @@ export const parseChat = (
 
     const dateMatch = line.match(dateSeparatorRegex);
     if (dateMatch) {
-      const formattedDate = formatDateWithDay(dateMatch[1]);
-       if (formattedDate !== lastDate) {
-        messages.push({
-            id: Math.random(),
-            type: 'date',
-            date: formattedDate,
-        });
-        lastDate = formattedDate;
-        lastMessage = null;
+      const fullDateStr = dateMatch[1];
+      const datePartMatch = fullDateStr.match(/(\d{4}년 \d{1,2}월 \d{1,2}일)/);
+      if (datePartMatch) {
+        const formattedDate = formatDateWithDay(datePartMatch[1]);
+        if (formattedDate !== lastDate) {
+          messages.push({
+              id: Math.random(),
+              type: 'date',
+              date: fullDateStr,
+          });
+          lastDate = formattedDate;
+          lastMessage = null;
+        }
       }
       continue;
     }
@@ -62,15 +66,18 @@ export const parseChat = (
     const messageMatch = line.match(messageRegex);
     if (messageMatch) {
       const [_, fullTimestamp, userName, content] = messageMatch;
-      const messageDate = fullTimestamp.match(/^(\d{4}년 \d{1,2}월 \d{1,2}일)/)?.[0];
+      const messageDateMatch = fullTimestamp.match(/^(\d{4}년 \d{1,2}월 \d{1,2}일)/);
 
-      if (messageDate && formatDateWithDay(messageDate) !== lastDate) {
-        lastDate = formatDateWithDay(messageDate);
-        messages.push({
-          id: Math.random(),
-          type: 'date',
-          date: lastDate,
-        });
+      if (messageDateMatch && messageDateMatch[0]) {
+        const messageDate = messageDateMatch[0];
+        if (formatDateWithDay(messageDate) !== lastDate) {
+          lastDate = formatDateWithDay(messageDate);
+          messages.push({
+            id: Math.random(),
+            type: 'date',
+            date: fullTimestamp,
+          });
+        }
       }
       
       const timestamp = parseTimestampToDisplayTime(fullTimestamp);
@@ -79,12 +86,13 @@ export const parseChat = (
         lastMessage.user === userName.trim() &&
         lastMessage.timestamp === timestamp;
 
-      const newMessage: ChatItem = {
+      const newMessage: Message = {
         id: Math.random(),
         type: 'message',
         user: userName.trim(),
         content: content.trim(),
         timestamp: timestamp,
+        fullTimestamp: fullTimestamp,
         isContinuation,
       };
       

@@ -4,6 +4,7 @@ import { parseChat } from './services/chatParser';
 import ChatBubble from './components/ChatBubble';
 
 const AVATAR_COLORS = ['bg-red-500', 'bg-green-500', 'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500'];
+const KOREAN_DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 type ParsedData = {
   messages: ChatItem[];
@@ -11,6 +12,33 @@ type ParsedData = {
   title: string;
   imageStore: Record<string, string>;
 };
+
+const formatDateWithDay = (dateStr: string) => {
+  const match = dateStr.match(/(\d{4})년 (\d{1,2})월 (\d{1,2})일/);
+  if (!match) return dateStr;
+  const [, year, month, day] = match;
+  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  if (isNaN(date.getTime())) return dateStr;
+  const dayOfWeek = KOREAN_DAYS[date.getDay()];
+  return `${dateStr} ${dayOfWeek}요일`;
+};
+
+const formatDateForDisplay = (dateString: string, mode: 'kakaotalk' | 'instagram'): string => {
+    const dateMatch = dateString.match(/(\d{4})년 (\d{1,2})월 (\d{1,2})일/);
+    if (!dateMatch) return dateString;
+    
+    if (mode === 'kakaotalk') {
+        return formatDateWithDay(dateMatch[0]);
+    } else { // instagram
+        const timeMatch = dateString.match(/(오전|오후) \d{1,2}:\d{2}/);
+        const [, year, month, day] = dateMatch;
+        const time = timeMatch ? ` ${timeMatch[0]}` : '';
+        const formattedMonth = parseInt(month, 10);
+        const formattedDay = parseInt(day, 10);
+        return `${year}. ${formattedMonth}. ${formattedDay}.${time}`;
+    }
+}
+
 
 const FileUpload: React.FC<{ 
   onFileUpload: (file: File) => void; 
@@ -87,18 +115,35 @@ const UserSelection: React.FC<{ users: string[], onSelect: (name: string) => voi
 );
 
 
-const ChatHeader: React.FC<{ title: string }> = ({ title }) => (
-  <div className="sticky top-0 z-10 bg-[#A9B9C8] p-3 flex items-center">
-    <button className="text-black mr-4">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-    </button>
-    <h2 className="text-black text-lg font-semibold flex-grow">{title.replace(" 님과 카카오톡 대화", "")}</h2>
-    <div className="flex items-center gap-4 text-black">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
-    </div>
-  </div>
-);
+const ChatHeader: React.FC<{ 
+    title: string;
+    uiMode: 'kakaotalk' | 'instagram';
+    onGoBack: () => void;
+    onToggleUIMode: () => void;
+}> = ({ title, uiMode, onGoBack, onToggleUIMode }) => {
+    const headerStyle = uiMode === 'kakaotalk'
+        ? "bg-[#8698A8] text-white"
+        : "bg-white text-black border-b border-gray-300";
+    const titleStyle = uiMode === 'kakaotalk'
+        ? "text-lg font-semibold flex-grow"
+        : "text-base font-bold flex-grow text-center";
+    const iconStyle = "h-6 w-6";
+
+    return (
+      <div className={`sticky top-0 z-10 p-3 flex items-center transition-colors duration-300 ${headerStyle}`}>
+        <button onClick={onGoBack} className="mr-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className={iconStyle} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={uiMode === 'kakaotalk' ? 2 : 2.5} d="M15 19l-7-7 7-7" /></svg>
+        </button>
+        <h2 className={titleStyle}>{title.replace(" 님과 카카오톡 대화", "").replace("카카오톡 대화", "")}</h2>
+        <div className="flex items-center gap-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className={iconStyle} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={uiMode === 'kakaotalk' ? 2 : 2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          <button onClick={onToggleUIMode}>
+            <svg xmlns="http://www.w3.org/2000/svg" className={iconStyle} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={uiMode === 'kakaotalk' ? 2 : 2.5} d="M4 6h16M4 12h16m-7 6h7" /></svg>
+          </button>
+        </div>
+      </div>
+    );
+};
 
 
 const App: React.FC = () => {
@@ -110,15 +155,28 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [isSelectingUser, setIsSelectingUser] = useState<boolean>(false);
+  const [uiMode, setUiMode] = useState<'kakaotalk' | 'instagram'>('kakaotalk');
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const toggleUIMode = () => {
+      setUiMode(prev => prev === 'kakaotalk' ? 'instagram' : 'kakaotalk');
+  };
+
+  const handleGoBack = () => {
+    setChatItems([]);
+    setUsers({});
+    setImageStore({});
+    setChatTitle('');
+    setParsedData(null);
+    setIsSelectingUser(false);
+  };
 
   useEffect(() => {
     if (chatItems.length > 0) {
       chatEndRef.current?.scrollIntoView({ behavior: 'auto' });
     }
-  }, [chatItems]);
+  }, [chatItems, uiMode]);
 
   const handleFileUpload = useCallback(async (file: File) => {
     if (!file || !file.name.endsWith('.zip')) {
@@ -130,9 +188,6 @@ const App: React.FC = () => {
 
     try {
       const zip = await JSZip.loadAsync(file);
-      // FIX: The result of Object.values on an untyped object can be `unknown[]` in strict TypeScript.
-      // The `find` method on `unknown[]` returns `unknown`, causing a type error.
-      // Explicitly type `txtFile` as `any` to allow property access.
       const txtFile: any = Object.values(zip.files).find((f: any) => f.name.endsWith('.txt'));
 
       if (!txtFile) {
@@ -242,24 +297,26 @@ const App: React.FC = () => {
   if (chatItems.length === 0) {
     return <FileUpload onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} isLoading={isLoading} error={error} />;
   }
+  
+  const chatContainerStyle = uiMode === 'kakaotalk' ? 'bg-[#A9BDCE]' : 'bg-gradient-to-b from-[#F6E2FF] to-[#E1F5FE]';
+  const dateSeparatorStyle = uiMode === 'kakaotalk' 
+      ? "bg-black/20 text-xs text-white rounded-full px-3 py-1"
+      : "text-center my-4 text-xs text-gray-500";
+  const systemMessageStyle = "bg-black/20 text-xs text-white rounded-full px-3 py-1";
 
   return (
-    <div className="flex flex-col h-screen bg-gray-200 text-black font-sans">
-        <ChatHeader title={chatTitle} />
-        <div 
-          className="flex-1 overflow-y-auto p-4 space-y-2"
-          style={{
-            backgroundImage: "url('https://mblogthumb-phinf.pstatic.net/MjAxODAzMTFfMTUw/MDAxNTIwNzM1NzcxMjIx.VV7V_1Y-12Jz27VPfBx6o0Z6ghtfwswPa0hv2Pz0fcQg.l-n7q1BsV8uszXspCHo6DXoqDt5oKzdzMUgc11OBy2Ig.PNG.osy2201/1.png?type=w800')",
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        >
+    <div className={`flex flex-col h-screen text-black font-sans transition-colors duration-300 ${chatContainerStyle}`}>
+        <ChatHeader title={chatTitle} uiMode={uiMode} onGoBack={handleGoBack} onToggleUIMode={toggleUIMode} />
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {chatItems.map((item, index) => {
                 switch (item.type) {
                 case 'date':
-                    return <div key={item.id} className="text-center my-4"><span className="bg-gray-700 text-xs text-white rounded-full px-3 py-1">{item.date}</span></div>;
+                    const dateContent = formatDateForDisplay(item.date, uiMode);
+                    const datePrefix = uiMode === 'kakaotalk' ? '🗓️ ' : '';
+                    const dateSuffix = uiMode === 'kakaotalk' ? ' >' : '';
+                    return <div key={item.id} className="text-center my-4"><span className={dateSeparatorStyle}>{datePrefix}{dateContent}{dateSuffix}</span></div>;
                 case 'system':
-                    return <div key={item.id} className="text-center my-4"><span className="bg-gray-700 text-xs text-white rounded-full px-3 py-1">{item.content}</span></div>;
+                    return <div key={item.id} className="text-center my-4"><span className={systemMessageStyle}>{item.content}</span></div>;
                 case 'message':
                     const user = users[item.user];
                     if (!user) return null;
@@ -270,7 +327,7 @@ const App: React.FC = () => {
                         nextItem.user === item.user &&
                         nextItem.timestamp === item.timestamp
                     );
-                    return <ChatBubble key={item.id} message={item} user={user} imageStore={imageStore} onUpdate={handleUpdateMessage} isLastInGroup={isLastInGroup} />;
+                    return <ChatBubble key={item.id} message={item} user={user} imageStore={imageStore} onUpdate={handleUpdateMessage} isLastInGroup={isLastInGroup} uiMode={uiMode} />;
                 default:
                     return null;
                 }
