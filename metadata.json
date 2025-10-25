@@ -1,0 +1,5 @@
+{
+  "name": "KakaoTalk Chat Viewer",
+  "description": "An application to view exported KakaoTalk chat logs from a .zip file. It displays messages, images, and system notifications in a familiar chat interface, and allows for inline editing of messages.",
+  "requestFramePermissions": []
+}
