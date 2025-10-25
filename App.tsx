@@ -108,7 +108,7 @@ const FileUpload: React.FC<{
 const UserSelection: React.FC<{ users: string[], onSelect: (name: string) => void }> = ({ users, onSelect }) => (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-900/80 backdrop-blur-sm text-white p-4">
         <div className="bg-gray-800 rounded-lg p-8 shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6 text-center">대화에서 사용할 이름을 선택하세요.</h2>
+            <h2 className="text-2xl font-bold mb-6 text-center">뷰어에서 당신이 사용할 이름을 선택하세요.</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {users.map(user => (
                     <button 
