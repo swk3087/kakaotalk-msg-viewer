@@ -12,31 +12,51 @@ type ParsedData = {
   imageStore: Record<string, string>;
 };
 
-const FileUpload: React.FC<{ onFileUpload: (file: File) => void; isLoading: boolean; error: string | null }> = ({ onFileUpload, isLoading, error }) => (
-  <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white p-4">
-    <div className="text-center p-8 border-2 border-dashed border-gray-600 rounded-lg max-w-lg">
-      <h1 className="text-3xl font-bold mb-2">카카오톡 대화 뷰어</h1>
-      <p className="text-gray-400 mb-6">카카오톡에서 '대화 내용 내보내기' 기능을 사용하여 만든 .zip 파일을 업로드하세요.</p>
-      <input
-        type="file"
-        id="file-upload"
-        className="hidden"
-        accept=".zip"
-        onChange={(e) => e.target.files && onFileUpload(e.target.files[0])}
-        disabled={isLoading}
-      />
-      <label htmlFor="file-upload" className={`w-full text-center px-6 py-3 rounded-lg font-semibold cursor-pointer transition-colors ${isLoading ? 'bg-gray-500' : 'bg-[#F7E600] hover:bg-yellow-400 text-black'}`}>
-        {isLoading ? '처리 중...' : 'ZIP 파일 선택'}
-      </label>
-      {error && <p className="text-red-400 mt-4">{error}</p>}
-       <p className="text-xs text-gray-500 mt-6">
-        이 애플리케이션은 모든 데이터를 브라우저 내에서만 처리합니다.
-        <br />
-        어떠한 대화 내용도 서버로 전송되지 않습니다.
-      </p>
+const FileUpload: React.FC<{ 
+  onFileUpload: (file: File) => void; 
+  onFolderUpload: (files: FileList) => void;
+  isLoading: boolean; 
+  error: string | null 
+}> = ({ onFileUpload, onFolderUpload, isLoading, error }) => (
+    <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white p-4">
+        <div className="text-center p-8 border-2 border-dashed border-gray-600 rounded-lg max-w-lg">
+            <h1 className="text-3xl font-bold mb-2">카카오톡 대화 뷰어</h1>
+            <p className="text-gray-400 mb-6">카카오톡에서 '대화 내용 내보내기' 기능을 사용하여 만든 .zip 파일 또는 폴더를 업로드하세요.</p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <input
+                    type="file"
+                    id="file-upload"
+                    className="hidden"
+                    accept=".zip"
+                    onChange={(e) => e.target.files && onFileUpload(e.target.files[0])}
+                    disabled={isLoading}
+                />
+                <label htmlFor="file-upload" className={`w-full text-center px-6 py-3 rounded-lg font-semibold cursor-pointer transition-colors ${isLoading ? 'bg-gray-500' : 'bg-[#F7E600] hover:bg-yellow-400 text-black'}`}>
+                    {isLoading ? '처리 중...' : 'ZIP 파일 선택'}
+                </label>
+
+                <input
+                    type="file"
+                    id="folder-upload"
+                    className="hidden"
+                    onChange={(e) => e.target.files && onFolderUpload(e.target.files)}
+                    disabled={isLoading}
+                    {...{ webkitdirectory: "", directory: "" }}
+                />
+                <label htmlFor="folder-upload" className={`w-full text-center px-6 py-3 rounded-lg font-semibold cursor-pointer transition-colors ${isLoading ? 'bg-gray-500' : 'bg-sky-500 hover:bg-sky-600 text-white'}`}>
+                    {isLoading ? '처리 중...' : '폴더 선택'}
+                </label>
+            </div>
+            {error && <p className="text-red-400 mt-4">{error}</p>}
+            <p className="text-xs text-gray-500 mt-6">
+                이 애플리케이션은 모든 데이터를 브라우저 내에서만 처리합니다.
+                <br />
+                어떠한 대화 내용도 서버로 전송되지 않습니다.
+            </p>
+        </div>
     </div>
-  </div>
 );
+
 
 const UserSelection: React.FC<{ users: string[], onSelect: (name: string) => void }> = ({ users, onSelect }) => (
     <div className="flex flex-col items-center justify-center h-screen bg-gray-900/80 backdrop-blur-sm text-white p-4">
@@ -135,6 +155,45 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleFolderUpload = useCallback(async (files: FileList) => {
+    if (!files || files.length === 0) {
+        setError('폴더를 선택해주세요.');
+        return;
+    }
+    setIsLoading(true);
+    setError(null);
+
+    try {
+        const fileArray = Array.from(files);
+        const txtFile = fileArray.find(f => f.name === 'KakaoTalkChats.txt') || fileArray.find(f => f.name.endsWith('.txt'));
+
+        if (!txtFile) {
+            throw new Error('.txt 파일을 폴더에서 찾을 수 없습니다.');
+        }
+
+        const txtContent = await txtFile.text();
+        const { messages, users: parsedUsers, title } = parseChat(txtContent);
+
+        const newImageStore: Record<string, string> = {};
+        const imageFiles = fileArray.filter(f => f.name.match(/\.(jpg|jpeg|png|gif)$/i));
+
+        for (const imageFile of imageFiles) {
+            newImageStore[imageFile.name] = URL.createObjectURL(imageFile);
+        }
+        
+        setParsedData({ messages, users: parsedUsers, title, imageStore: newImageStore });
+        setIsSelectingUser(true);
+
+    } catch (e) {
+        console.error(e);
+        setError('폴더를 처리하는 중 오류가 발생했습니다.');
+        setIsSelectingUser(false);
+        setParsedData(null);
+    } finally {
+        setIsLoading(false);
+    }
+  }, []);
+
   const handleSelectUser = useCallback((selectedName: string) => {
     if (!parsedData) return;
 
@@ -172,7 +231,7 @@ const App: React.FC = () => {
   }
 
   if (chatItems.length === 0) {
-    return <FileUpload onFileUpload={handleFileUpload} isLoading={isLoading} error={error} />;
+    return <FileUpload onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} isLoading={isLoading} error={error} />;
   }
 
   return (
